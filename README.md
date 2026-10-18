@@ -15,19 +15,51 @@ npm install
 npm test
 ```
 
-将仓库链接进需要的 profile（把示例路径替换成实际的 clone 目录）：
+### 选择实际运行的 profile
+
+**新版桌面端使用 `desktop`，不是 `web`。** 两个 profile 的依赖、bundles 和配置互相独立；装进 `web` 不会让桌面端加载插件。把示例路径替换成实际的 clone 目录，并选择与你运行方式匹配的命令：
 
 ```sh
+# 桌面端：使用该桌面版配套的 DSH CLI（如安装目录下的 runtime/cli/bin/dsh.cmd）
+dsh plugin --profile desktop add "link:/absolute/path/to/dsh-llm-limiter"
+
+# 独立 Web 服务：仅在你实际运行 dsh web 时使用
 dsh plugin --profile web add "link:/absolute/path/to/dsh-llm-limiter"
 ```
 
-确认 profile 的 `dsh.profile.bundles` 包含 `dsh-llm-limiter`，由 bundle patch 挂载插件。初次装载或更新源码后重启相应 DSH 进程；不要再手工插入同 ID 的 Cordis 行。
+不要默认使用 PATH 中另一版本的 CLI 管理桌面 profile。桌面 profile 由 Electron 宿主管理，普通运行命令不一定允许 `--profile desktop`；这里的 `plugin ... add` 是插件管理命令，不是用 CLI 启动 desktop 宿主。
+
+确认**所选 profile** 的 `dsh.profile.bundles` 包含 `dsh-llm-limiter`，由 bundle patch 挂载插件。初次装载或更新源码后重启对应宿主（桌面端重启桌面应用，Web 端重启对应 Web 服务）；不要再手工插入同 ID 的 Cordis 行。
+
+### 已验证 DSH 版本
+
+| DSH 版本 | 运行环境 | 验证范围 |
+|---|---|---|
+| **0.2.0-rc.2** | Windows 桌面端，`desktop` profile | 插件装载、`llm/stream` 限流链路、profile patch 配置读取，以及真实请求的 per-model 分桶日志 |
+
+这是已确认的运行环境，不代表所有 `0.2.x`、后续正式版或其它平台都已验证。公开快照另通过 35 项离线核心/插件集成测试；离线测试不等于宿主版本兼容性测试。
 
 `@deepseek-ai/schemastery` 是 peer dependency。`npm install` 可安装该依赖；若宿主要求共享同一 schema 实例，请按对应 DSH 版本的依赖管理方式处理。
 
 ## 配置
 
-在 DSH 设置服务的 `llm-limiter` 命名空间配置。旧版可使用 `settings.yaml` 对应段；使用 profile patch 存储设置的版本应在该 profile 的设置中配置。没有设置服务时，插件回退到 Cordis 行配置。
+**DSH 0.2.0-rc.2 桌面端**：在 `desktop` profile 的插件设置页配置，或在该 profile 的 `cordis.patch.yml` 中更新既有 entry（不要重复插入）：
+
+```yaml
+- id: dsh-llm-limiter
+  config:
+    enabled: true
+    log: throttle
+    perProvider:
+      example-provider:
+        rateLimit:
+          concurrency: 5
+          rpm: 50
+```
+
+`0.2.0-rc.2` 已没有旧的 `settings.register` API，本插件会使用 entry 的 `config`；不能把旧版 `llm-limiter` 命名空间的热更新机制视为已在新版验证。手工改 patch 后请重启对应宿主并核对装载日志。
+
+**旧版设置服务**：使用 `settings.yaml` 的 `llm-limiter` 命名空间。下面展示完整字段；用于新版 profile patch 时，将 `llm-limiter:` 下的字段放到上述 `config:` 内，而不是继续编辑全局 `settings.yaml`。
 
 ```yaml
 llm-limiter:
