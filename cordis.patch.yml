@@ -1,0 +1,6 @@
+# dsh-llm-limiter bundle patch。
+# 把插件行插进 profile 的 Cordis 加载名单；真正的配置在 settings.yaml 的
+# `llm-limiter:` 段落里（运行时热生效，改完不用重启）。
+- insert:
+    - id: dsh-llm-limiter
+      name: dsh-llm-limiter
